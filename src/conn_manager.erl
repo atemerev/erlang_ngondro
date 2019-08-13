@@ -3,7 +3,7 @@
 -compile(export_all).
 
 proc(init, P) ->
-  {ok, Conn} = gun:open("www.bitmex.com", 80),
+  {ok, Conn} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
   gun:ws_upgrade(Conn, "/realtime"),
   {ok, P};
 proc({gun_ws, _, _, Msg}, P) ->
