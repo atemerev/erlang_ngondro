@@ -3,7 +3,7 @@
   {description, "Preliminary Practice"},
   {vsn, "0.8.0"},
   {registered, []},
-  {applications, [kernel,stdlib]},
+  {applications, [kernel,stdlib,syn,gun,n2o]},
   {mod, { erlang_ngondro, []}},
   {env, []}
  ]}.
