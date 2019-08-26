@@ -1,6 +1,5 @@
 -module(erlang_ngondro).
 -include_lib("n2o/include/n2o.hrl").
--compile(export_all).
 -behaviour(application).
 -behaviour(supervisor).
 -export([start/2, stop/1, init/1]).
@@ -8,4 +7,5 @@
 start(_, _) -> client("bitmex"), supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 stop(_) -> ok.
 init([]) -> {ok, { {one_for_one, 5, 10}, []} }.
-client(Name) -> n2o_pi:start(#pi{module=conn_manager,table=caching,sup=n2o,state=[],name=Name}).
+client(Name) -> n2o_pi:start(#pi{module=conn_manager,table=caching,sup=n2o,state=[0],name=Name}).
+
