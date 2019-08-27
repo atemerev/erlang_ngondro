@@ -5,7 +5,7 @@
 proc(init, P) ->
   {ok, Conn} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
   monitor(process, Conn),
-  {ok, P#pi{state={[],[],[]}}};
+  {ok, P};
 
 proc({gun_ws, _, _, {text, <<"PONG">>}}, P) ->
   {reply, [], P};
