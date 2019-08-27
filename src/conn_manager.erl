@@ -3,57 +3,52 @@
 -compile(export_all).
 
 proc(init, P) ->
-  {ok, _}      = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
-  InitialState = {[], timer_restart(), get_timestamp()},
-  {ok, P#pi{state = InitialState}};
+  {ok, Conn} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
+  monitor(process, Conn),
+  {ok, P#pi{state={[],[],[]}}};
+
+proc({gun_ws, _, _, {text, <<"PONG">>}}, P) ->
+  {reply, [], P};
+
+proc({gun_ws, _, _, Msg}, P) ->
+  io:format("~s",["."]),
+  {reply, [], P};
 
 proc({gun_down, _, _, Reason, _, _}, P) ->
   io:format("TIC DOWN: ~p~n", [Reason]),
-  {reply, [], P};
+  {reply, [], #pi{state = {[], [], []}}};
 
 proc({gun_up, Conn, _}, #pi{state = {_, Timer, _}} = P) ->
   io:format("TIC UP: ~p~n", [Conn]),
-  gun:ws_upgrade(Conn, "/realtime"),
-  erlang:cancel_timer(Timer),
-  {reply, [], P#pi{state={Conn, timer_restart(), get_timestamp()}}};
-
-proc({gun_upgrade, Conn, _, _, _}, P) ->
-  io:format("TIC WS: ~p~n", [Conn]),
-  gun:ws_send(Conn, {text, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\"]}"}),
+  gun:ws_upgrade(Conn, <<"/realtime">>, []),
   {reply, [], P};
 
-proc({gun_error, _, _, Reason}, P) ->
+proc({gun_upgrade, Conn, _, _, _}, #pi{ state = { [], [], [] }} = P) ->
+  io:format("TIC WS: ~p~n", [Conn]),
+  gun:ws_send(Conn, {text, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\"]}"}),
+  {reply, [], P#pi{state = {Conn,timer_restart(), get_timestamp()}}};
+
+proc({gun_upgrade, Conn, _, _, _}, #pi{ state = { _, Timer, _ }} = P) ->
+  erlang:cancel_timer(Timer),
+  io:format("TIC WS: ~p~n", [Conn]),
+  gun:ws_send(Conn, {text, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\"]}"}),
+  {reply, [], P#pi{state = {Conn,timer_restart(), get_timestamp()}}};
+
+proc({gun_error, Conn, _, Reason}, P) ->
   io:format("TIC ERR: ~p~n", [Reason]),
   {reply, [], P};
 
-proc({gun_ws, _, _, Msg}, #pi{state = {Conn, Timer, _}} = P) ->
-%%  io:format("TIC msg: ~p, ~p~n", [Msg, CurrentTime]),
-  {reply, [], P#pi{state = {Conn, Timer, get_timestamp()}}};
+proc({timer, ping}, #pi{state = {[], [], []} = P}) ->
+  {reply, [], P};
 
-proc({timer, ping}, #pi{state = {Conn, Timer, PrevTime}} = P) ->
-  CurrentTime = get_timestamp(),
-  if
-    CurrentTime - PrevTime > 10000 ->
-      io:format("TIC TIMEOUT: ~p~n", [CurrentTime - PrevTime]),
-      case Conn of
-        [] ->
-          do_nothing;
-        X when erlang:is_pid(X) ->
-          gun:shutdown(Conn),
-          #pi{name = Name, table = Tab} = P,
-          n2o_pi:stop(Tab, Name)
-      end,
-      {reply, [], P#pi{state = {[], Timer, PrevTime}}};
-    true ->
-      io:format("TIC TS: prev: ~p, current: ~p, diff: ~p~n", [PrevTime, CurrentTime, CurrentTime - PrevTime]),
-      {reply, [], P#pi{state = {Conn, timer_restart(), PrevTime}}}
-  end;
+proc({timer, ping}, #pi{state = {Conn, Timer, PrevTime},  name= Name, table = Tab} = P) ->
+  erlang:cancel_timer(Timer),
+  gun:ws_send(Conn, {text, <<"PING">>}),
+  {reply, [], P#pi{state = {Conn, timer_restart(), get_timestamp()}}};
 
-proc(Unknown, P) ->
+proc(Unknown, #pi{ state = {Conn,_,_}} = P) ->
   io:format("TIC UNK: ~p~n", [Unknown]),
   {reply, [], P}.
-
-% Utilities
 
 get_timestamp() ->
   {Mega, Sec, Micro} = os:timestamp(),
