@@ -45,8 +45,7 @@ delete(Book = #orderbook{bids = Bids, offers = Offers}, Side, Id) ->
     _ -> invalid_entry_side
   end.
 
-update(Book = #orderbook, Side, Id, _, 0) ->
-  delete(Book, Side, Id);
+update(Book = #orderbook{}, Side, Id, _, 0) -> delete(Book, Side, Id);
 
 update(Book = #orderbook{bids = Bids, offers = Offers}, Side, Id, MaybeNewPrice, MaybeNewAmount) ->
   Line = case Side of
