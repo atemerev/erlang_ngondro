@@ -49,7 +49,7 @@ proc({timer, ping}, #pi{state = #venue_state{timer = Timer, stamp = PrevTime} = 
   D = stamp() - PrevTime,
   case D > 10000 of
     true -> spawn(fun() -> n2o_pi:restart(caching, "bitmex") end);
-    false -> io:format("~p~n", [D]) end,
+    false -> io:format("(~p)", [D]) end,
   {reply, [], P#pi{state = S#venue_state{timer = timer_restart()}}};
 
 proc(Unknown, P) ->
@@ -68,7 +68,14 @@ process_bitmex_message(Msg) ->
   Data = jsone:decode(Content),
   MaybeTable = maps:find(<<"table">>, Data),
   case MaybeTable of
-    {ok, <<"orderBookL2">>} -> io:format("~s", ["."]);
+    {ok, <<"orderBookL2">>} ->
+      Action = maps:get(<<"action">>, Data),
+      case Action of
+        <<"partial">> -> io:format("~s", ["="]);
+        <<"insert">> -> io:format("~s", ["+"]);
+        <<"update">> -> io:format("~s", ["."]);
+        <<"delete">> -> io:format("~s", ["-"])
+      end;
     {ok, <<"trade">>} -> io:format("~s", ["|"]);
     _ -> do_nothing
   end.
