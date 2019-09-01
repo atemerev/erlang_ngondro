@@ -1,0 +1,1 @@
+-record(venue_state, {conn, timer, stamp, orderbook}).
