@@ -70,28 +70,38 @@ process_bitmex_message(Msg, PrevBook) ->
   case MaybeTable of
     {ok, <<"orderBookL2">>} ->
       Action = maps:get(<<"action">>, Data),
+      Entries = maps:get(<<"data">>, Data),
       case Action of
         <<"partial">> ->
-          Entries = maps:get(<<"data">>, Data),
-          lists:foldl(
-            fun(E, B) ->
-              % todo check for symbol
-              #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = E,
-              EntrySide = case Side of
-                            <<"Buy">> -> bid;
-                            <<"Sell">> -> offer
-                          end,
-              Entry = #order_entry{id = Id, side = EntrySide, price = Price, amount = Size},
-              orderbook:insert(B, Entry)
-            end, PrevBook, Entries),
+          insert_entries(PrevBook, Entries),
           io:format("~s", ["="]);
-        <<"insert">> -> io:format("~s", ["+"]);
-        <<"update">> -> io:format("~s", ["."]);
+        <<"insert">> ->
+          insert_entries(PrevBook, Entries),
+          io:format("~s", ["+"]);
+        <<"update">> ->
+          io:format("~s", ["."]);
         <<"delete">> -> io:format("~s", ["-"])
       end;
     {ok, <<"trade">>} -> io:format("~s", ["|"]);
     _ -> do_nothing
   end.
+
+parse_order_entry(Term) ->
+  #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = Term,
+  EntrySide = case Side of
+                <<"Buy">> -> bid;
+                <<"Sell">> -> offer
+              end,
+  #order_entry{id = Id, side = EntrySide, price = Price, amount = Size}.
+
+insert_entries(Book, Entries) ->
+  lists:foldl(
+    fun(E, B) ->
+      % todo check for symbol
+      Entry = parse_order_entry(E),
+      orderbook:insert(B, Entry)
+    end, Book, Entries).
+
 
 subscribe(Conn) ->
   gun:ws_send(Conn, {text, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\", \"trade:XBTUSD\"]}"}).
