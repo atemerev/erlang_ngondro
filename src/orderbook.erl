@@ -8,8 +8,8 @@ new_book(Symbol) ->
 
 insert(Book = #orderbook{bids = Bids, offers = Offers}, Entry = #order_entry{side = Side, price = Price}) ->
   {Line, Fun} = case Side of
-                  bid -> {Bids, fun(X) -> Price < X end};
-                  offer -> {Offers, fun(X) -> Price < X end};
+                  bid -> {Bids, fun(X) -> Price < X#order_entry.price end};
+                  offer -> {Offers, fun(X) -> Price < X#order_entry.price end};
                   _ -> {unknown, invalid_entry_side}
                 end,
 
@@ -50,7 +50,7 @@ update(Book = #orderbook{bids = Bids, offers = Offers}, Side, Id, MaybeNewPrice,
            offer -> Offers;
            _ -> invalid_entry_side
          end,
-  MaybeIdxById = fputils:find_index(Line, fun(X) -> X == Id end),
+  MaybeIdxById = fputils:find_index(Line, fun(X) -> X#order_entry.id == Id end),
 
   case MaybeIdxById of
     not_found -> not_found;

@@ -9,10 +9,10 @@ proc(init, P) ->
   io:format("INIT~n"),
   {ok, P};
 
-proc({gun_ws, _, _, Msg}, #pi{state = #venue_state{orderbook = Book} = S} = P) ->
-  process_bitmex_message(Msg, Book), % todo update orderbook
+proc({gun_ws, _, _, Msg}, #pi{state = S} = P) ->
+  NewState = process_bitmex_message(Msg, S),
   CurrentTime = stamp(),
-  {reply, [], P#pi{state = S#venue_state{stamp = CurrentTime}}};
+  {reply, [], P#pi{state = NewState#venue_state{stamp = CurrentTime}}};
 
 proc({gun_down, _, _, Reason, _, _}, _) ->
   io:format("TIC DOWN: ~p~n", [Reason]),
@@ -63,7 +63,7 @@ stamp() ->
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
 
-process_bitmex_message(Msg, PrevBook) ->
+process_bitmex_message(Msg, PrevState) ->
   {text, Content} = Msg,
   Data = jsone:decode(Content),
   MaybeTable = maps:find(<<"table">>, Data),
@@ -73,26 +73,55 @@ process_bitmex_message(Msg, PrevBook) ->
       Entries = maps:get(<<"data">>, Data),
       case Action of
         <<"partial">> ->
-          insert_entries(PrevBook, Entries),
-          io:format("~s", ["="]);
+          EmptyBook = orderbook:new_book("XBTUSD"),
+          io:format("~s", ["="]),
+          NewBook = insert_entries(EmptyBook, Entries),
+          PrevState#venue_state{orderbook = NewBook};
         <<"insert">> ->
-          insert_entries(PrevBook, Entries),
-          io:format("~s", ["+"]);
+          NewBook = insert_entries(PrevState#venue_state.orderbook, Entries),
+          io:format("~s", ["+"]),
+          PrevState#venue_state{orderbook = NewBook};
         <<"update">> ->
-          io:format("~s", ["."]);
-        <<"delete">> -> io:format("~s", ["-"])
+          PrevBook = PrevState#venue_state.orderbook,
+          NewBook = lists:foldl(
+            fun(E, B) ->
+              #{<<"id">> := Id, <<"side">> := Side} = E,
+              MaybeNewPrice = maps:get(<<"price">>, E, none),
+              MaybeNewAmount = maps:get(<<"size">>, E, none),
+              EntrySide = parse_side(Side),
+              orderbook:update(B, EntrySide, Id, MaybeNewPrice, MaybeNewAmount)
+            end, PrevBook, Entries
+          ),
+          io:format("~s", ["."]),
+          PrevState#venue_state{orderbook = NewBook};
+        <<"delete">> ->
+          PrevBook = PrevState#venue_state.orderbook,
+          NewBook = lists:foldl(
+            fun(E, B) ->
+              #{<<"id">> := Id, <<"side">> := Side} = E,
+              EntrySide = parse_side(Side),
+              orderbook:delete(B, EntrySide, Id)
+            end, PrevBook, Entries
+          ),
+          io:format("~s", ["-"]),
+          PrevState#venue_state{orderbook = NewBook}
       end;
-    {ok, <<"trade">>} -> io:format("~s", ["|"]);
-    _ -> do_nothing
+    {ok, <<"trade">>} ->
+      io:format("~s", ["|"]),
+      PrevState;
+    _ -> PrevState
   end.
 
 parse_order_entry(Term) ->
   #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = Term,
-  EntrySide = case Side of
-                <<"Buy">> -> bid;
-                <<"Sell">> -> offer
-              end,
+  EntrySide = parse_side(Side),
   #order_entry{id = Id, side = EntrySide, price = Price, amount = Size}.
+
+parse_side(RawSide) ->
+  case RawSide of
+    <<"Buy">> -> bid;
+    <<"Sell">> -> offer
+  end.
 
 insert_entries(Book, Entries) ->
   lists:foldl(
