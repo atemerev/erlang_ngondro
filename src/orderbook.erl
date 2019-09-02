@@ -1,10 +1,7 @@
 -module(orderbook).
 -author("atemerev").
-
+-include("state.hrl").
 -export([new_book/1, insert/2, delete/3, update/5]).
-
--record(orderbook, {symbol, bids, offers}).
--record(order_entry, {side, id, price, amount}).
 
 new_book(Symbol) ->
   #orderbook{symbol = Symbol, bids = [], offers = []}.
@@ -16,7 +13,7 @@ insert(Book = #orderbook{bids = Bids, offers = Offers}, Entry = #order_entry{sid
                   _ -> {unknown, invalid_entry_side}
                 end,
 
-  MaybeIdx = fputils:find_index(Line, Price, Fun),
+  MaybeIdx = fputils:find_index(Line, Fun),
   NewLine = case MaybeIdx of
               not_found -> lists:append(Line, [Entry]);
               Idx -> fputils:insert_at(Line, Idx, Entry)
@@ -34,7 +31,7 @@ delete(Book = #orderbook{bids = Bids, offers = Offers}, Side, Id) ->
            offer -> Offers;
            _ -> invalid_entry_side
          end,
-  MaybeIdx = fputils:find_index(Line, Id, fun(X) -> Id == X end),
+  MaybeIdx = fputils:find_index(Line, fun(X) -> Id == X end),
   NewLine = case MaybeIdx of
               not_found -> Line;
               Idx -> fputils:delete_at(Line, Idx)

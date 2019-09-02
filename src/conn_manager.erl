@@ -9,8 +9,8 @@ proc(init, P) ->
   io:format("INIT~n"),
   {ok, P};
 
-proc({gun_ws, _, _, Msg}, #pi{state = #venue_state{} = S} = P) ->
-  process_bitmex_message(Msg),
+proc({gun_ws, _, _, Msg}, #pi{state = #venue_state{orderbook = Book} = S} = P) ->
+  process_bitmex_message(Msg, Book), % todo update orderbook
   CurrentTime = stamp(),
   {reply, [], P#pi{state = S#venue_state{stamp = CurrentTime}}};
 
@@ -63,7 +63,7 @@ stamp() ->
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
 
-process_bitmex_message(Msg) ->
+process_bitmex_message(Msg, PrevBook) ->
   {text, Content} = Msg,
   Data = jsone:decode(Content),
   MaybeTable = maps:find(<<"table">>, Data),
@@ -71,7 +71,20 @@ process_bitmex_message(Msg) ->
     {ok, <<"orderBookL2">>} ->
       Action = maps:get(<<"action">>, Data),
       case Action of
-        <<"partial">> -> io:format("~s", ["="]);
+        <<"partial">> ->
+          Entries = maps:get(<<"data">>, Data),
+          lists:foldl(
+            fun(E, B) ->
+              % todo check for symbol
+              #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = E,
+              EntrySide = case Side of
+                            <<"Buy">> -> bid;
+                            <<"Sell">> -> offer
+                          end,
+              Entry = #order_entry{id = Id, side = EntrySide, price = Price, amount = Size},
+              orderbook:insert(B, Entry)
+            end, PrevBook, Entries),
+          io:format("~s", ["="]);
         <<"insert">> -> io:format("~s", ["+"]);
         <<"update">> -> io:format("~s", ["."]);
         <<"delete">> -> io:format("~s", ["-"])

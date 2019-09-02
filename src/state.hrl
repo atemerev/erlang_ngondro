@@ -1,1 +1,3 @@
 -record(venue_state, {conn, timer, stamp, orderbook}).
+-record(orderbook, {symbol, bids, offers}).
+-record(order_entry, {side, id, price, amount}).

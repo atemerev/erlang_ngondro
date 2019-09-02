@@ -7,7 +7,7 @@ find_index(List, Fun) -> find_index(List, Fun, 1).
 
 find_index([], _, _) -> not_found;
 
-find_index([H | T], Idx, Fun) ->
+find_index([H | T],  Fun, Idx) ->
   Res = Fun(H),
   case Res of
     true -> Idx;
