@@ -3,8 +3,7 @@
 -include_lib("n2o/include/n2o.hrl").
 -include("state.hrl").
 
-%% API
--export([]).
+-compile(export_all).
 
 proc(init, P) ->
   gun:open("api02.ethercast.net", 80, #{protocols => [http]}),
@@ -31,7 +30,7 @@ proc({notify, Spread}, #pi{state = Conn} = P) ->
   case gun:await(Conn, StreamRef) of
     {response, fin, _, _} ->
       no_data;
-    {response, nofin, Status, Headers} ->
+    {response, nofin, _, _} ->
       {ok, body} = gun:await_body(Conn, StreamRef),
       io:format("~s~n", [Body])
   end,

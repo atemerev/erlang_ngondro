@@ -6,6 +6,7 @@
 
 proc(init, P) ->
   {ok, _} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
+%%  n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = [], name = "notifier"}),
   io:format("INIT~n"),
   {ok, P};
 
@@ -71,41 +72,44 @@ process_bitmex_message(Msg, PrevState) ->
     {ok, <<"orderBookL2">>} ->
       Action = maps:get(<<"action">>, Data),
       Entries = maps:get(<<"data">>, Data),
-      case Action of
-        <<"partial">> ->
-          EmptyBook = orderbook:new_book("XBTUSD"),
-          io:format("~s", ["="]),
-          NewBook = insert_entries(EmptyBook, Entries),
-          PrevState#venue_state{orderbook = NewBook};
-        <<"insert">> ->
-          NewBook = insert_entries(PrevState#venue_state.orderbook, Entries),
-          io:format("~s", ["+"]),
-          PrevState#venue_state{orderbook = NewBook};
-        <<"update">> ->
-          PrevBook = PrevState#venue_state.orderbook,
-          NewBook = lists:foldl(
-            fun(E, B) ->
-              #{<<"id">> := Id, <<"side">> := Side} = E,
-              MaybeNewPrice = maps:get(<<"price">>, E, none),
-              MaybeNewAmount = maps:get(<<"size">>, E, none),
-              EntrySide = parse_side(Side),
-              orderbook:update(B, EntrySide, Id, MaybeNewPrice, MaybeNewAmount)
-            end, PrevBook, Entries
-          ),
-          io:format("~s", ["."]),
-          PrevState#venue_state{orderbook = NewBook};
-        <<"delete">> ->
-          PrevBook = PrevState#venue_state.orderbook,
-          NewBook = lists:foldl(
-            fun(E, B) ->
-              #{<<"id">> := Id, <<"side">> := Side} = E,
-              EntrySide = parse_side(Side),
-              orderbook:delete(B, EntrySide, Id)
-            end, PrevBook, Entries
-          ),
-          io:format("~s", ["-"]),
-          PrevState#venue_state{orderbook = NewBook}
-      end;
+      NewBook = case Action of
+                  <<"partial">> ->
+                    EmptyBook = orderbook:new_book("XBTUSD"),
+                    io:format("~s", ["="]),
+                    insert_entries(EmptyBook, Entries);
+                  <<"insert">> ->
+                    io:format("~s", ["+"]),
+                    insert_entries(PrevState#venue_state.orderbook, Entries);
+                  <<"update">> ->
+                    PrevBook = PrevState#venue_state.orderbook,
+                    io:format("~s", ["."]),
+                    lists:foldl(
+                      fun(E, B) ->
+                        #{<<"id">> := Id, <<"side">> := Side} = E,
+                        MaybeNewPrice = maps:get(<<"price">>, E, none),
+                        MaybeNewAmount = maps:get(<<"size">>, E, none),
+                        EntrySide = parse_side(Side),
+                        orderbook:update(B, EntrySide, Id, MaybeNewPrice, MaybeNewAmount)
+                      end, PrevBook, Entries
+                    );
+                  <<"delete">> ->
+                    PrevBook = PrevState#venue_state.orderbook,
+                    io:format("~s", ["-"]),
+                    lists:foldl(
+                      fun(E, B) ->
+                        #{<<"id">> := Id, <<"side">> := Side} = E,
+                        EntrySide = parse_side(Side),
+                        orderbook:delete(B, EntrySide, Id)
+                      end, PrevBook, Entries
+                    )
+                end,
+      {BestBid, BestOffer} = orderbook:best(NewBook),
+      Spread = BestOffer - BestBid,
+      if
+        Spread > 5 -> n2o_pi:send(caching, "notifier", {notify, Spread});
+        true -> do_nothing
+      end,
+      PrevState#venue_state{orderbook = NewBook};
     {ok, <<"trade">>} ->
       io:format("~s", ["|"]),
       PrevState;
