@@ -1,7 +1,6 @@
 -module(conn_manager).
 -include_lib("n2o/include/n2o.hrl").
 -include("state.hrl").
-
 -compile(export_all).
 
 proc(init, #pi{state = S} = P) ->

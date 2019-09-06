@@ -1,10 +1,9 @@
 -module(erlang_ngondro).
+-include("state.hrl").
 -include_lib("n2o/include/n2o.hrl").
 -behaviour(application).
 -behaviour(supervisor).
 -export([start/2, stop/1, init/1]).
-
--include("state.hrl").
 
 start(_, _) ->
   client("bitmex"),
