@@ -4,10 +4,10 @@
 
 -compile(export_all).
 
-proc(init, P) ->
+proc(init, #pi{state = S} = P) ->
   {ok, _} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
   io:format("INIT~n"),
-  {ok, P};
+  {ok, P#pi{state = S#venue_state{timer = timer_restart(), stamp = stamp()}}};
 
 proc({gun_ws, _, _, Msg}, #pi{state = S} = P) ->
   NewState = process_bitmex_message(Msg, S),
@@ -28,15 +28,13 @@ proc({gun_up, Conn, _}, P) ->
 proc({gun_upgrade, Conn, _, _, _}, #pi{state = #venue_state{conn = [], timer = []} = S} = P) ->
   io:format("TIC WS1: ~p~n", [Conn]),
   subscribe(Conn),
-  CurrentTime = stamp(),
-  {reply, [], P#pi{state = S#venue_state{conn = Conn, timer = timer_restart(), stamp = CurrentTime}}};
+  {reply, [], P#pi{state = S#venue_state{conn = Conn, timer = timer_restart(), stamp = stamp()}}};
 
 proc({gun_upgrade, Conn, _, _, _}, #pi{state = #venue_state{timer = Timer} = S} = P) ->
   io:format("TIC WS2: ~p ~p~n", [Conn, Timer]),
   erlang:cancel_timer(Timer),
   subscribe(Conn),
-  CurrentTime = stamp(),
-  {reply, [], P#pi{state = S#venue_state{timer = timer_restart(), stamp = CurrentTime}}};
+  {reply, [], P#pi{state = S#venue_state{timer = timer_restart(), stamp = stamp()}}};
 
 proc({gun_error, _, _, Reason}, P) ->
   io:format("TIC ERR: ~p~n", [Reason]),
