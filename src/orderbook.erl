@@ -13,34 +13,34 @@ insert(Book = #orderbook{}, Entry = #order_entry{side = Side, price = Price}) ->
           offer -> fun(X) -> Price < X#order_entry.price end;
           _ -> invalid_entry_side
         end,
-  MaybeIdx = fputils:find_index(Line, Fun),
-  NewLine = case MaybeIdx of
+  Idx = fputils:find_index(Line, Fun),
+  NewLine = case Idx of
               not_found -> lists:append(Line, [Entry]);
-              Idx -> fputils:insert_at(Line, Idx, Entry)
+              _ -> fputils:insert_at(Line, Idx, Entry)
             end,
   put_line(Book, Side, NewLine).
 
 delete(Book = #orderbook{}, Side, Id) ->
   Line = get_line(Book, Side),
-  MaybeIdx = fputils:find_index(Line, fun(X) -> X#order_entry.id == Id end),
-  NewLine = case MaybeIdx of
+  Idx = fputils:find_index(Line, fun(X) -> X#order_entry.id == Id end),
+  NewLine = case Idx of
               not_found -> Line;
-              Idx -> fputils:delete_at(Line, Idx)
+              _ -> fputils:delete_at(Line, Idx)
             end,
   put_line(Book, Side, NewLine).
 
 update(Book = #orderbook{}, Side, Id, _, 0) -> delete(Book, Side, Id);
 
-update(Book = #orderbook{}, Side, Id, MaybeNewPrice, MaybeNewAmount) ->
+update(Book = #orderbook{}, Side, Id, Price, Amount) ->
   Line = get_line(Book, Side),
-  MaybeIdxById = fputils:find_index(Line, fun(X) -> X#order_entry.id == Id end),
+  IdxById = fputils:find_index(Line, fun(X) -> X#order_entry.id == Id end),
 
-  case MaybeIdxById of
+  case IdxById of
     not_found -> not_found;
     Idx ->
       Entry = lists:nth(Idx, Line),
-      E1 = maybe_new(MaybeNewPrice,Entry,price,Entry),
-      E2 = maybe_new(MaybeNewAmount,Entry,amount,E1),
+      E1 = maybe_new(Price,Entry,price,Entry),
+      E2 = maybe_new(Amount,Entry,amount,E1),
       NewLine = fputils:replace_at(Line, Idx, E2),
       put_line(Book, Side, NewLine)
   end.
