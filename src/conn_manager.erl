@@ -21,7 +21,6 @@ proc({gun_down, _, _, Reason, _, _}, _) ->
 
 proc({gun_up, Conn, _}, P) ->
   io:format("TIC UP: ~p~n", [Conn]),
-  n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = [], name = "notifier"}),
   gun:ws_upgrade(Conn, <<"/realtime">>, []),
   {reply, [], P};
 
