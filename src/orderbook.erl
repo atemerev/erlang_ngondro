@@ -45,18 +45,19 @@ update(Book = #orderbook{}, Side, Id, MaybeNewPrice, MaybeNewAmount) ->
       put_line(Book, Side, NewLine)
   end.
 
-maybe_new(Value,Entry,price) when Value > 0 -> Entry#order_entry{price = Value};
+maybe_new(Value,Entry,price)  when Value > 0 -> Entry#order_entry{price = Value};
 maybe_new(Value,Entry,amount) when Value > 0 -> Entry#order_entry{amount = Value};
-maybe_new(Value,Entry,_) -> Entry.
+maybe_new(Value,Entry,_)                     -> Entry.
 
 get_line(#orderbook{bids = B, offers = O}, bid)   -> B;
 get_line(#orderbook{bids = B, offers = O}, offer) -> O;
 get_line(#orderbook{bids = B, offers = O}, _)     -> invalid_entry_side.
 
-put_line(Book, bid, NewLine)   -> Book#orderbook{bids = NewLine};
+put_line(Book, bid,   NewLine) -> Book#orderbook{bids = NewLine};
 put_line(Book, offer, NewLine) -> Book#orderbook{offers = NewLine};
-put_line(Book, _, NewLine)     -> invalid_entry_side.
+put_line(Book, _,     NewLine) -> invalid_entry_side.
 
-best([]) -> not_found;
+best([])    -> not_found;
 best([H|_]) -> H#order_entry.price;
+
 best(#orderbook{bids = Bids, offers = Offers}) -> {best(Bids),best(Offers)}.
