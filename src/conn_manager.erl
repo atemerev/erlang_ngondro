@@ -101,8 +101,9 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
+      SpreadThreshold = application:get_env(tic,spread,20),
       if
-        Spread >= application:get_env(tic,spread,20)
+        Spread >= SpreadThreshold
                -> n2o_pi:send(caching, "notifier", {notify, Spread});
           true -> do_nothing
       end,
