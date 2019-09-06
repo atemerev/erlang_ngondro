@@ -51,27 +51,14 @@ update(Book = #orderbook{}, Side, Id, MaybeNewPrice, MaybeNewAmount) ->
       put_line(Book, Side, NewLine)
   end.
 
-get_line(_ = #orderbook{bids = Bids, offers = Offers}, Side) ->
-  case Side of
-    bid -> Bids;
-    offer -> Offers;
-    _ -> invalid_entry_side
-  end.
+get_line(#orderbook{bids = B, offers = O}, bid)   -> B;
+get_line(#orderbook{bids = B, offers = O}, offer) -> O;
+get_line(#orderbook{bids = B, offers = O}, _)     -> invalid_entry_side.
 
-put_line(Book = #orderbook{}, Side, NewLine) ->
-  case Side of
-    bid -> Book#orderbook{bids = NewLine};
-    offer -> Book#orderbook{offers = NewLine};
-    _ -> invalid_entry_side
-  end.
+put_line(Book, bid, NewLine)   -> Book#orderbook{bids = NewLine};
+put_line(Book, offer, NewLine) -> Book#orderbook{offers = NewLine};
+put_line(Book, _, NewLine)     -> invalid_entry_side.
 
-best(_ = #orderbook{bids = Bids, offers = Offers}) ->
-  BestBid = case Bids of
-              [] -> not_found;
-              [BH | _] -> BH#order_entry.price
-            end,
-  BestOffer = case Offers of
-                [] -> not_found;
-                [OH | _] -> OH#order_entry.price
-              end,
-  {BestBid, BestOffer}.
+best([]) -> not_found;
+best([H|_]) -> H#order_entry.price;
+best(#orderbook{bids = Bids, offers = Offers}) -> {best(Bids),best(Offers)}.
