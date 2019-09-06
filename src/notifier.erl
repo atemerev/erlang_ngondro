@@ -6,20 +6,16 @@
 -compile(export_all).
 
 proc(init, P) ->
-  gun:open("api02.ethercast.net", 443, #{protocols => [http], transport => tls}),
   io:format("Notifier started.~n"),
   {ok, P};
 
 proc({gun_up, Conn, _}, P) ->
-  io:format("Notifier connected: ~p~n", [Conn]),
   {reply, [], P#pi{state = Conn}};
 
-proc({notify, _}, #pi{state = []} = P) ->
-  io:format("Can't notify: no connection.~n"),
-  {reply, [], P};
-
-proc({notify, Spread}, #pi{state = Conn} = P) ->
+proc({notify, Spread}, #pi{} = P) ->
   io:format("Notify: ~p~n", [Spread]),
+  {ok, Conn} = gun:open("api02.ethercast.net", 443, #{protocols => [http], transport => tls}),
+  gun:await_up(Conn),
   Body = jsone:encode(#{spread => Spread}),
   Plaintext = <<"user:FitoJabaX">>,
   Base64 = base64:encode_to_string(Plaintext),
@@ -32,6 +28,8 @@ proc({notify, Spread}, #pi{state = Conn} = P) ->
       no_data;
     {response, nofin, _, _} ->
       {ok, Response} = gun:await_body(Conn, StreamRef),
-      io:format("~s~n", [Response])
+      io:format("Response: ~s~n", [Response])
   end,
-  {reply, [], P}.
+  {reply, [], P};
+
+proc(M,S) -> {reply, [], S}.

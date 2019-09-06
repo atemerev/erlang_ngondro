@@ -104,7 +104,7 @@ process_bitmex_message(Msg, PrevState) ->
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
       if
-        Spread >= 3 -> n2o_pi:send(caching, "notifier", {notify, Spread});
+        Spread >= 1 -> n2o_pi:send(caching, "notifier", {notify, Spread});
         true -> do_nothing
       end,
       PrevState#venue_state{orderbook = NewBook};
