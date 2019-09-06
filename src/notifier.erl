@@ -2,15 +2,10 @@
 -author("atemerev").
 -include_lib("n2o/include/n2o.hrl").
 -include("state.hrl").
-
 -compile(export_all).
 
 proc(init, P) ->
-  io:format("Notifier started.~n"),
   {ok, P};
-
-proc({gun_up, Conn, _}, P) ->
-  {reply, [], P#pi{state = Conn}};
 
 proc({notify, Spread}, #pi{} = P) ->
   io:format("Notify: ~p~n", [Spread]),
