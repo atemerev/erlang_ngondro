@@ -39,15 +39,15 @@ update(Book = #orderbook{}, Side, Id, MaybeNewPrice, MaybeNewAmount) ->
     not_found -> not_found;
     Idx ->
       Entry = lists:nth(Idx, Line),
-      E1 = maybe_new(MaybeNewPrice,Entry,price),
-      E2 = maybe_new(MaybeNewAmount,Entry,amount),
+      E1 = maybe_new(MaybeNewPrice,Entry,price,Entry),
+      E2 = maybe_new(MaybeNewAmount,Entry,amount,E1),
       NewLine = fputils:replace_at(Line, Idx, E2),
       put_line(Book, Side, NewLine)
   end.
 
-maybe_new(Value,Entry,price)  when Value > 0 -> Entry#order_entry{price = Value};
-maybe_new(Value,Entry,amount) when Value > 0 -> Entry#order_entry{amount = Value};
-maybe_new(Value,Entry,_)                     -> Entry.
+maybe_new(Value,Entry,price,_)  when Value > 0 -> Entry#order_entry{price = Value};
+maybe_new(Value,Entry,amount,_) when Value > 0 -> Entry#order_entry{amount = Value};
+maybe_new(Value,Entry,_,Default)               -> Default.
 
 get_line(#orderbook{bids = B, offers = O}, bid)   -> B;
 get_line(#orderbook{bids = B, offers = O}, offer) -> O;
