@@ -60,6 +60,17 @@ stamp() ->
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
 
+cancel_all() ->
+  %% todo assemble headers
+  {ok, {{"HTTP/1.1", 200, "OK"}, _, Response}} =
+    httpc:request(delete, {"https://www.bitmex.com/api/v1/order/all",
+      [{"Accept", "application/json"},
+        {"api-expires", "???"},
+        {"api-key", "???"},
+        {"api-signature", "???"}],
+      "application/json"},
+      [{ssl, [{versions, ['tlsv1.2']}]}], []).
+
 process_bitmex_message(Msg, PrevState) ->
   {text, Content} = Msg,
   Data = jsone:decode(Content),
@@ -101,11 +112,11 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
-      SpreadThreshold = application:get_env(tic,spread,20),
+      SpreadThreshold = application:get_env(tic, spread, 20),
       if
         Spread >= SpreadThreshold
-               -> n2o_pi:send(caching, "notifier", {notify, Spread});
-          true -> do_nothing
+          -> n2o_pi:send(caching, "notifier", {notify, Spread});
+        true -> do_nothing
       end,
       PrevState#venue_state{orderbook = NewBook};
     {ok, <<"trade">>} ->
