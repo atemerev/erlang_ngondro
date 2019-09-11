@@ -15,5 +15,5 @@ notifier() ->
   n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = [], name = "notifier"}).
 client(Name) ->
   InitialState = #venue_state{conn=[], timer = [], stamp = [], orderbook = orderbook:new_book("XBTUSD")},
-  n2o_pi:start(#pi{module = conn_manager, table = caching, sup = n2o, state = InitialState, name = Name}).
+  n2o_pi:start(#pi{module = bitmex, table = caching, sup = n2o, state = InitialState, name = Name}).
 

@@ -1,4 +1,4 @@
--module(conn_manager).
+-module(bitmex).
 -include_lib("n2o/include/n2o.hrl").
 -include("state.hrl").
 -compile(export_all).
