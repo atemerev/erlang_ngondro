@@ -1,5 +1,5 @@
 -module(erlang_ngondro).
--include("state.hrl").
+-include("../include/state.hrl").
 -include_lib("n2o/include/n2o.hrl").
 -behaviour(application).
 -behaviour(supervisor).
@@ -14,6 +14,6 @@ init([]) -> {ok, {{one_for_one, 5, 10}, []}}.
 notifier() ->
   n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = [], name = "notifier"}).
 client(Name) ->
-  InitialState = #venue_state{conn=[], timer = [], stamp = [], orderbook = orderbook:new_book("XBTUSD")},
+  InitialState = #venue_state{auth=#auth{api_key="VRljkeAiXH80mRndOA0TuBfY", secret="sgJWLHhtOiIGXYJaeEhtLLMLFiH_aSawmI7lwLswHSsm_r1M"}, conn=[], timer = [], stamp = [], orderbook = orderbook:new_book("XBTUSD")},
   n2o_pi:start(#pi{module = bitmex, table = caching, sup = n2o, state = InitialState, name = Name}).
 

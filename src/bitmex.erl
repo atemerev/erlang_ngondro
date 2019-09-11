@@ -1,6 +1,6 @@
 -module(bitmex).
 -include_lib("n2o/include/n2o.hrl").
--include("state.hrl").
+-include("../include/state.hrl").
 -compile(export_all).
 
 proc(init, #pi{state = S} = P) ->
@@ -53,23 +53,37 @@ proc(Unknown, P) ->
   io:format("TIC UNK: ~p~n", [Unknown]),
   {reply, [], P}.
 
+cancel_all(#auth{} = Auth) ->
+  %% todo assemble headers
+  Expires = integer_to_list(expires_time()),
+  Headers = req_headers(Auth, "DELETE", "/api/v1/order/all", "", Expires),
+  httpc:request(delete, {"https://www.bitmex.com/api/v1/order/all",
+    Headers,
+    "application/json", ""},
+    [{ssl, [{versions, ['tlsv1.2']}]}], []).
+
+req_headers(#auth{api_key = ApiKey, secret = Secret}, Verb, Path, Data, Expires) ->
+  Signature = signature(Secret, Verb, Path, Data, Expires),
+  [{"Accept", "application/json"},
+    {"api-expires", Expires},
+    {"api-key", ApiKey},
+    {"api-signature", Signature}].
+
+signature(Secret, Verb, Path, Data, Expires) ->
+  Plain = io_lib:format("~s~s~s~s", [Verb, Path, Expires, Data]),
+  Hmac = crypto:hmac(sha256, Secret, Plain),
+  bin_to_hex(Hmac).
+
+expires_time() ->
+  {Mega, Sec, _} = os:timestamp(),
+  (Mega * 1000000 + Sec + 10) * 1000.
+
 stamp() ->
   {Mega, Sec, Micro} = os:timestamp(),
   (Mega * 1000000 + Sec) * 1000 + round(Micro / 1000).
 
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
-
-cancel_all() ->
-  %% todo assemble headers
-  {ok, {{"HTTP/1.1", 200, "OK"}, _, Response}} =
-    httpc:request(delete, {"https://www.bitmex.com/api/v1/order/all",
-      [{"Accept", "application/json"},
-        {"api-expires", "???"},
-        {"api-key", "???"},
-        {"api-signature", "???"}],
-      "application/json"},
-      [{ssl, [{versions, ['tlsv1.2']}]}], []).
 
 process_bitmex_message(Msg, PrevState) ->
   {text, Content} = Msg,
@@ -112,10 +126,13 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
-      SpreadThreshold = application:get_env(tic, spread, 20),
+%%      SpreadThreshold = application:get_env(tic, spread, 3),
+      SpreadThreshold = 3,
       if
-        Spread >= SpreadThreshold
-          -> n2o_pi:send(caching, "notifier", {notify, Spread});
+        Spread >= SpreadThreshold ->
+          Auth = PrevState#venue_state.auth,
+          cancel_all(Auth),
+          n2o_pi:send(caching, "notifier", {notify, Spread});
         true -> do_nothing
       end,
       PrevState#venue_state{orderbook = NewBook};
@@ -124,6 +141,11 @@ process_bitmex_message(Msg, PrevState) ->
       PrevState;
     _ -> PrevState
   end.
+
+bin_to_hex(Bin) -> lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(Bin)]).
+
+byte_to_hex(<< N1:4, N2:4 >>) ->
+  [erlang:integer_to_list(N1, 16), erlang:integer_to_list(N2, 16)].
 
 parse_order_entry(Term) ->
   #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = Term,

@@ -1,3 +1,4 @@
--record(venue_state, {conn, timer, stamp, orderbook}).
+-record(auth, {api_key, secret}).
+-record(venue_state, {auth, conn, timer, stamp, orderbook}).
 -record(orderbook, {symbol, bids, offers}).
 -record(order_entry, {side, id, price, amount}).

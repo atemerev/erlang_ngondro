@@ -1,6 +1,6 @@
 -module(orderbook).
 -author("atemerev").
--include("state.hrl").
+-include("../include/state.hrl").
 -export([new_book/1, insert/2, delete/3, update/5, best/1]).
 
 new_book(Symbol) ->
