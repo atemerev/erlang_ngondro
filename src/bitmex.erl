@@ -6,11 +6,11 @@
 proc(init, #pi{state = S} = P) ->
   {ok, _} = gun:open("www.bitmex.com", 443, #{protocols => [http], transport => tls}),
   io:format("INIT~n"),
-  {ok, P#pi{state = S#venue_state{timer = timer_restart(), stamp = stamp()}}};
+  {ok, P#pi{state = S#venue_state{timer = timer_restart(), stamp = misc:timestamp()}}};
 
 proc({gun_ws, _, _, Msg}, #pi{state = S} = P) ->
   NewState = process_bitmex_message(Msg, S),
-  CurrentTime = stamp(),
+  CurrentTime = misc:timestamp(),
   {reply, [], P#pi{state = NewState#venue_state{stamp = CurrentTime}}};
 
 proc({gun_down, _, _, Reason, _, _}, _) ->
@@ -26,13 +26,13 @@ proc({gun_up, Conn, _}, P) ->
 proc({gun_upgrade, Conn, _, _, _}, #pi{state = #venue_state{conn = [], timer = []} = S} = P) ->
   io:format("TIC WS1: ~p~n", [Conn]),
   subscribe(Conn),
-  {reply, [], P#pi{state = S#venue_state{conn = Conn, timer = timer_restart(), stamp = stamp()}}};
+  {reply, [], P#pi{state = S#venue_state{conn = Conn, timer = timer_restart(), stamp = misc:timestamp()}}};
 
 proc({gun_upgrade, Conn, _, _, _}, #pi{state = #venue_state{timer = Timer} = S} = P) ->
   io:format("TIC WS2: ~p ~p~n", [Conn, Timer]),
   erlang:cancel_timer(Timer),
   subscribe(Conn),
-  {reply, [], P#pi{state = S#venue_state{timer = timer_restart(), stamp = stamp()}}};
+  {reply, [], P#pi{state = S#venue_state{timer = timer_restart(), stamp = misc:timestamp()}}};
 
 proc({gun_error, _, _, Reason}, P) ->
   io:format("TIC ERR: ~p~n", [Reason]),
@@ -43,7 +43,7 @@ proc({timer, ping}, #pi{state = #venue_state{conn = [], timer = []}} = P) ->
 
 proc({timer, ping}, #pi{state = #venue_state{timer = Timer, stamp = PrevTime} = S} = P) ->
   erlang:cancel_timer(Timer),
-  D = misc:stamp() - PrevTime,
+  D = misc:timestamp() - PrevTime,
   case D > 10000 of
     true -> spawn(fun() -> n2o_pi:restart(caching, "bitmex") end);
     false -> io:format("(~p)", [D]) end,
@@ -72,7 +72,7 @@ req_headers(#auth{api_key = ApiKey, secret = Secret}, Verb, Path, Data, Expires)
 signature(Secret, Verb, Path, Data, Expires) ->
   Plain = io_lib:format("~s~s~s~s", [Verb, Path, Expires, Data]),
   Hmac = crypto:hmac(sha256, Secret, Plain),
-  bin_to_hex(Hmac).
+  misc:bin_to_hex(Hmac).
 
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
@@ -118,8 +118,7 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
-%%      SpreadThreshold = application:get_env(tic, spread, 3),
-      SpreadThreshold = 20,
+      SpreadThreshold = application:get_env(syob, notify_spread),
       if
         Spread >= SpreadThreshold ->
           Auth = PrevState#venue_state.auth,
@@ -133,11 +132,6 @@ process_bitmex_message(Msg, PrevState) ->
       PrevState;
     _ -> PrevState
   end.
-
-bin_to_hex(Bin) -> lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(Bin)]).
-
-byte_to_hex(<< N1:4, N2:4 >>) ->
-  [erlang:integer_to_list(N1, 16), erlang:integer_to_list(N2, 16)].
 
 parse_order_entry(Term) ->
   #{<<"id">> := Id, <<"side">> := Side, <<"size">> := Size, <<"price">> := Price} = Term,
