@@ -95,7 +95,7 @@ process_bitmex_message(Msg, PrevState) ->
                     insert_entries(PrevState#venue_state.orderbook, Entries);
                   <<"update">> ->
                     PrevBook = PrevState#venue_state.orderbook,
-                    io:format("~s", ["."]),
+%                    io:format("~s", ["."]),
                     lists:foldl(
                       fun(E, B) ->
                         #{<<"id">> := Id, <<"side">> := Side} = E,
@@ -118,9 +118,10 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
-      SpreadThreshold = application:get_env(syob, notify_spread),
+      {ok, SpreadThreshold} = application:get_env(syob, notify_spread),
       if
         Spread >= SpreadThreshold ->
+          io:format("Spread detected: ~p, threshold: ~p~n", [Spread, SpreadThreshold]),
           n2o_pi:send(caching, "notifier", {notify, Spread});
         true -> do_nothing
       end,
