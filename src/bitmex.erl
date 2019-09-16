@@ -121,7 +121,8 @@ process_bitmex_message(Msg, PrevState) ->
       SpreadThreshold = application:get_env(syob, notify_spread),
       if
         Spread >= SpreadThreshold ->
-          n2o_pi:send(caching, "notifier", {notify, Spread})
+          n2o_pi:send(caching, "notifier", {notify, Spread});
+        true -> do_nothing
       end,
       PrevState#venue_state{orderbook = NewBook};
     {ok, <<"trade">>} ->

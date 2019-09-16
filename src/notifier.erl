@@ -19,7 +19,7 @@ proc({notify, Spread}, #pi{state = #notifier_state{last_notify = Last}} = P) ->
       bitmex:cancel_all(Auth),
       NextState = #notifier_state{last_notify = Current},
       {reply, [], P#pi{state = NextState}};
-    true -> ok
+    true -> do_nothing
   end; % otherwise do nothing
 
 proc(_, P) -> {reply, [], P}.
