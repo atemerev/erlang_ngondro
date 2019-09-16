@@ -121,10 +121,7 @@ process_bitmex_message(Msg, PrevState) ->
       SpreadThreshold = application:get_env(syob, notify_spread),
       if
         Spread >= SpreadThreshold ->
-          Auth = PrevState#venue_state.auth,
-          cancel_all(Auth),
-          n2o_pi:send(caching, "notifier", {notify, Spread});
-        true -> do_nothing
+          n2o_pi:send(caching, "notifier", {notify, Spread})
       end,
       PrevState#venue_state{orderbook = NewBook};
     {ok, <<"trade">>} ->
@@ -151,7 +148,6 @@ insert_entries(Book, Entries) ->
       Entry = parse_order_entry(E),
       orderbook:insert(B, Entry)
     end, Book, Entries).
-
 
 subscribe(Conn) ->
   gun:ws_send(Conn, {text, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\", \"trade:XBTUSD\"]}"}).
