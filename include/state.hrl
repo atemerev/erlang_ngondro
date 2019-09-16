@@ -1,4 +1,5 @@
 -record(auth, {api_key, secret}).
 -record(venue_state, {auth, conn, timer, stamp, orderbook}).
+-record(notifier_state, {last_notify}).
 -record(orderbook, {symbol, bids, offers}).
 -record(order_entry, {side, id, price, amount}).

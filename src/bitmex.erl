@@ -43,7 +43,7 @@ proc({timer, ping}, #pi{state = #venue_state{conn = [], timer = []}} = P) ->
 
 proc({timer, ping}, #pi{state = #venue_state{timer = Timer, stamp = PrevTime} = S} = P) ->
   erlang:cancel_timer(Timer),
-  D = stamp() - PrevTime,
+  D = misc:stamp() - PrevTime,
   case D > 10000 of
     true -> spawn(fun() -> n2o_pi:restart(caching, "bitmex") end);
     false -> io:format("(~p)", [D]) end,
@@ -55,7 +55,7 @@ proc(Unknown, P) ->
 
 cancel_all(#auth{} = Auth) ->
   %% todo assemble headers
-  Expires = integer_to_list(expires_time()),
+  Expires = integer_to_list(misc:expires_time()),
   Headers = req_headers(Auth, "DELETE", "/api/v1/order/all", "", Expires),
   httpc:request(delete, {"https://www.bitmex.com/api/v1/order/all",
     Headers,
@@ -73,14 +73,6 @@ signature(Secret, Verb, Path, Data, Expires) ->
   Plain = io_lib:format("~s~s~s~s", [Verb, Path, Expires, Data]),
   Hmac = crypto:hmac(sha256, Secret, Plain),
   bin_to_hex(Hmac).
-
-expires_time() ->
-  {Mega, Sec, _} = os:timestamp(),
-  (Mega * 1000000 + Sec + 10) * 1000.
-
-stamp() ->
-  {Mega, Sec, Micro} = os:timestamp(),
-  (Mega * 1000000 + Sec) * 1000 + round(Micro / 1000).
 
 timer_restart() ->
   erlang:send_after(1000, self(), {timer, ping}).
@@ -127,7 +119,7 @@ process_bitmex_message(Msg, PrevState) ->
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
 %%      SpreadThreshold = application:get_env(tic, spread, 3),
-      SpreadThreshold = 3,
+      SpreadThreshold = 20,
       if
         Spread >= SpreadThreshold ->
           Auth = PrevState#venue_state.auth,

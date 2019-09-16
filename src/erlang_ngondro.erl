@@ -12,7 +12,8 @@ start(_, _) ->
 stop(_) -> ok.
 init([]) -> {ok, {{one_for_one, 5, 10}, []}}.
 notifier() ->
-  n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = [], name = "notifier"}).
+  InitialState = #notifier_state{last_notify = 0},
+  n2o_pi:start(#pi{module = notifier, table = caching, sup = n2o, state = InitialState, name = "notifier"}).
 client(Name) ->
   InitialState = #venue_state{auth=#auth{api_key="VRljkeAiXH80mRndOA0TuBfY", secret="sgJWLHhtOiIGXYJaeEhtLLMLFiH_aSawmI7lwLswHSsm_r1M"}, conn=[], timer = [], stamp = [], orderbook = orderbook:new_book("XBTUSD")},
   n2o_pi:start(#pi{module = bitmex, table = caching, sup = n2o, state = InitialState, name = Name}).

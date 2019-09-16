@@ -1,4 +1,4 @@
--module(fputils).
+-module(fputil).
 -author("atemerev").
 -export([find_index/2, insert_at/3, delete_at/2, replace_at/3]).
 
