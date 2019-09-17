@@ -1,6 +1,6 @@
 -module(bitmex).
 -include_lib("n2o/include/n2o.hrl").
--include("../include/state.hrl").
+-include("state.hrl").
 -compile(export_all).
 
 proc(init, #pi{state = S} = P) ->
