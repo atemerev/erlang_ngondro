@@ -14,20 +14,19 @@ proc({notify, Spread}, #pi{state = #notifier_state{last_notify = Last}} = P) ->
   {ok, ApiKey} = application:get_env(syob, bitmex_api_key),
   {ok, Secret} = application:get_env(syob, bitmex_secret),
   Auth = #auth{api_key = ApiKey, secret = Secret},
+  %io:format("[~p]", [Spread]),
 
   if
     (Current - Last) > Debounce ->
 
       Content = #{ping => 1, current_spread => Spread},
-      Response = notify_request(Content),
-      io:format("[~p]", [Spread]),
+      notify_request(Content),
 
       if
         Spread >= SpreadThreshold ->
           io:format("Spread detected: ~p, threshold: ~p~n", [Spread, SpreadThreshold]),
-          Content = #{spread => Spread},
-          Response = notify_request(Content),
-          io:format("Notify: ~p~n", [jsone:decode(list_to_binary(Response))]),
+          SpreadResponse = notify_request(#{spread => Spread}),
+          io:format("Notify: ~p~n", [jsone:decode(list_to_binary(SpreadResponse))]),
           bitmex:cancel_all(Auth);
         true ->
           do_nothing
@@ -37,7 +36,8 @@ proc({notify, Spread}, #pi{state = #notifier_state{last_notify = Last}} = P) ->
       {reply, [], P#pi{state = NextState}};
     true ->
       {reply, [], P}
-  end; % otherwise do nothing
+  end;
+
 
 
 proc(_, P) -> {reply, [], P}.
@@ -45,7 +45,7 @@ proc(_, P) -> {reply, [], P}.
 notify_request(Content) ->
   {ok, Endpoint} = application:get_env(syob, notify_endpoint),
   {ok, Creds} = application:get_env(syob, notify_credentials),
-  {ok, {{"HTTP/1.1", 200, "OK"}, _, Response}} = httpc:request(post, {Endpoint,
+  {ok, {{"HTTP/1.1", _, _}, _, Response}} = httpc:request(post, {Endpoint,
     [{"Authorization", io_lib:format("Basic ~s",
       [base64:encode_to_string(Creds)])}],
     "application/json", jsone:encode(Content)},

@@ -1,6 +1,6 @@
 -module(bitmex).
 -include_lib("n2o/include/n2o.hrl").
--include("state.hrl").
+-include("../include/state.hrl").
 -compile(export_all).
 
 proc(init, #pi{state = S} = P) ->
@@ -46,7 +46,8 @@ proc({timer, ping}, #pi{state = #venue_state{timer = Timer, stamp = PrevTime} = 
   D = misc:timestamp() - PrevTime,
   case D > 10000 of
     true -> spawn(fun() -> n2o_pi:restart(caching, "bitmex") end);
-    false -> io:format("(~p)", [D]) end,
+    false -> do_nothing
+  end,
   {reply, [], P#pi{state = S#venue_state{timer = timer_restart()}}};
 
 proc(Unknown, P) ->
@@ -54,7 +55,6 @@ proc(Unknown, P) ->
   {reply, [], P}.
 
 cancel_all(#auth{} = Auth) ->
-  %% todo assemble headers
   Expires = integer_to_list(misc:expires_time()),
   Headers = req_headers(Auth, "DELETE", "/api/v1/order/all", "", Expires),
   httpc:request(delete, {"https://www.bitmex.com/api/v1/order/all",
