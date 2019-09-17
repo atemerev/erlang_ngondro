@@ -118,13 +118,7 @@ process_bitmex_message(Msg, PrevState) ->
                 end,
       {BestBid, BestOffer} = orderbook:best(NewBook),
       Spread = BestOffer - BestBid,
-      {ok, SpreadThreshold} = application:get_env(syob, notify_spread),
-      if
-        Spread >= SpreadThreshold ->
-          io:format("Spread detected: ~p, threshold: ~p~n", [Spread, SpreadThreshold]),
-          n2o_pi:send(caching, "notifier", {notify, Spread});
-        true -> do_nothing
-      end,
+      n2o_pi:send(caching, "notifier", {notify, Spread}),
       PrevState#venue_state{orderbook = NewBook};
     {ok, <<"trade">>} ->
       io:format("~s", ["|"]),
