@@ -20,6 +20,7 @@ proc({notify, Spread}, #pi{state = #notifier_state{last_notify = Last}} = P) ->
     (Current - Last) > Debounce ->
 
       Content = #{ping => 1, current_spread => Spread},
+      logger:notice("Current spread: ~p", [Spread]),
       notify_request(Content),
 
       if
