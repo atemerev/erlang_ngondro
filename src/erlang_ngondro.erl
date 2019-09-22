@@ -6,6 +6,7 @@
 -export([start/2, stop/1, init/1]).
 
 start(_, _) ->
+  logger:add_handlers(syob),
   client("bitmex"),
   notifier(),
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
